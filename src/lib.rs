@@ -110,6 +110,10 @@ macro_rules! from {
                 unsafe {
                     <$for>::from_raw_socket(socket.into_raw_socket())
                 }
+                #[cfg(target_os = "freertos")]
+                unsafe {
+                    <$for>::from_raw_socket(socket.into_raw_socket())
+                }
             }
         }
     };
@@ -121,9 +125,10 @@ mod sockref;
 
 #[cfg_attr(unix, path = "sys/unix.rs")]
 #[cfg_attr(windows, path = "sys/windows.rs")]
+#[cfg_attr(target_os = "freertos", path = "sys/freertos.rs")]
 mod sys;
 
-#[cfg(not(any(windows, unix)))]
+#[cfg(not(any(windows, unix, target_os = "freertos")))]
 compile_error!("Socket2 doesn't support the compile target");
 
 use sys::c_int;
@@ -205,8 +210,8 @@ impl Type {
     pub const DGRAM: Type = Type(sys::SOCK_DGRAM);
 
     /// Type corresponding to `SOCK_SEQPACKET`.
-    #[cfg(feature = "all")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "all")))]
+    #[cfg(all(feature = "all", not(target_os = "freertos")))]
+    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", not(target_os = "freertos")))))]
     pub const SEQPACKET: Type = Type(sys::SOCK_SEQPACKET);
 
     /// Type corresponding to `SOCK_RAW`.
