@@ -155,7 +155,7 @@ impl SockAddr {
     }
 
     /// Returns a raw pointer to the address storage.
-    #[cfg(all(unix, not(target_os = "redox")))]
+    #[cfg(any(all(unix, not(target_os = "redox")), target_os = "freertos"))]
     pub(crate) const fn as_storage_ptr(&self) -> *const sockaddr_storage {
         &self.storage
     }
@@ -186,6 +186,8 @@ impl SockAddr {
                 unsafe {
                     *addr.u.sin6_scope_id()
                 },
+                #[cfg(target_os = "freertos")]
+                addr.sin6_scope_id,
             )))
         } else {
             None
@@ -235,7 +237,8 @@ impl From<SocketAddrV4> for SockAddr {
                 target_os = "macos",
                 target_os = "netbsd",
                 target_os = "openbsd",
-                target_os = "nto"
+                target_os = "nto",
+                target_os = "freertos"
             ))]
             sin_len: 0,
         };
@@ -267,6 +270,8 @@ impl From<SocketAddrV6> for SockAddr {
             sin6_scope_id: addr.scope_id(),
             #[cfg(windows)]
             u,
+            #[cfg(target_os = "freertos")]
+            sin6_scope_id: addr.scope_id(),
             #[cfg(any(
                 target_os = "dragonfly",
                 target_os = "freebsd",
@@ -275,7 +280,8 @@ impl From<SocketAddrV6> for SockAddr {
                 target_os = "macos",
                 target_os = "netbsd",
                 target_os = "openbsd",
-                target_os = "nto"
+                target_os = "nto",
+                target_os = "freertos"
             ))]
             sin6_len: 0,
             #[cfg(any(target_os = "solaris", target_os = "illumos"))]

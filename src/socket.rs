@@ -11,9 +11,11 @@ use std::io::{self, Read, Write};
 #[cfg(not(target_os = "redox"))]
 use std::io::{IoSlice, IoSliceMut};
 use std::mem::MaybeUninit;
-#[cfg(not(target_os = "nto"))]
+#[cfg(not(any(target_os = "nto", target_os = "freertos",)))]
 use std::net::Ipv6Addr;
 use std::net::{self, Ipv4Addr, Shutdown};
+#[cfg(target_os = "freertos")]
+use std::os::freertos::io::{FromRawSocket, IntoRawSocket};
 #[cfg(unix)]
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 #[cfg(windows)]
@@ -113,6 +115,7 @@ impl Socket {
     }
 
     pub(crate) fn into_raw(self) -> sys::Socket {
+        println!("into_raw");
         sys::socket_into_raw(self.inner)
     }
 
@@ -341,6 +344,8 @@ impl Socket {
     /// On Windows this can **not** be used function cannot be used on a
     /// QOS-enabled socket, see
     /// <https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsaduplicatesocketw>.
+
+    #[cfg(not(target_os = "freertos"))]
     pub fn try_clone(&self) -> io::Result<Socket> {
         sys::try_clone(self.as_raw()).map(Socket::from_raw)
     }
@@ -1042,8 +1047,17 @@ impl Socket {
     /// For more information about this option, see [`set_header_included`].
     ///
     /// [`set_header_included`]: Socket::set_header_included
-    #[cfg(all(feature = "all", not(target_os = "redox")))]
-    #[cfg_attr(docsrs, doc(all(feature = "all", not(target_os = "redox"))))]
+    #[cfg(all(
+        feature = "all",
+        not(any(target_os = "redox", target_os = "freertos",))
+    ))]
+    #[cfg_attr(
+        docsrs,
+        doc(all(
+            feature = "all",
+            not(any(target_os = "redox", target_os = "freertos",))
+        ))
+    )]
     pub fn header_included(&self) -> io::Result<bool> {
         unsafe {
             getsockopt::<c_int>(self.as_raw(), sys::IPPROTO_IP, sys::IP_HDRINCL)
@@ -1062,8 +1076,17 @@ impl Socket {
     /// [raw(7)]: https://man7.org/linux/man-pages/man7/raw.7.html
     /// [`IP_TTL`]: Socket::set_ttl
     /// [`IP_TOS`]: Socket::set_tos
-    #[cfg(all(feature = "all", not(target_os = "redox")))]
-    #[cfg_attr(docsrs, doc(all(feature = "all", not(target_os = "redox"))))]
+    #[cfg(all(
+        feature = "all",
+        not(any(target_os = "redox", target_os = "freertos",))
+    ))]
+    #[cfg_attr(
+        docsrs,
+        doc(all(
+            feature = "all",
+            not(any(target_os = "redox", target_os = "freertos",))
+        ))
+    )]
     pub fn set_header_included(&self, included: bool) -> io::Result<()> {
         unsafe {
             setsockopt(
@@ -1166,6 +1189,7 @@ impl Socket {
         target_os = "redox",
         target_os = "solaris",
         target_os = "nto",
+        target_os = "freertos",
     )))]
     pub fn join_multicast_v4_n(
         &self,
@@ -1196,6 +1220,7 @@ impl Socket {
         target_os = "redox",
         target_os = "solaris",
         target_os = "nto",
+        target_os = "freertos",
     )))]
     pub fn leave_multicast_v4_n(
         &self,
@@ -1228,6 +1253,7 @@ impl Socket {
         target_os = "redox",
         target_os = "fuchsia",
         target_os = "nto",
+        target_os = "freertos",
     )))]
     pub fn join_ssm_v4(
         &self,
@@ -1263,6 +1289,7 @@ impl Socket {
         target_os = "redox",
         target_os = "fuchsia",
         target_os = "nto",
+        target_os = "freertos",
     )))]
     pub fn leave_ssm_v4(
         &self,
@@ -1439,6 +1466,7 @@ impl Socket {
         target_os = "solaris",
         target_os = "windows",
         target_os = "nto",
+        target_os = "freertos",
     )))]
     pub fn set_recv_tos(&self, recv_tos: bool) -> io::Result<()> {
         let recv_tos = if recv_tos { 1 } else { 0 };
@@ -1468,6 +1496,7 @@ impl Socket {
         target_os = "solaris",
         target_os = "windows",
         target_os = "nto",
+        target_os = "freertos",
     )))]
     pub fn recv_tos(&self) -> io::Result<bool> {
         unsafe {
@@ -1490,7 +1519,7 @@ impl Socket {
     /// This function specifies a new multicast group for this socket to join.
     /// The address must be a valid multicast address, and `interface` is the
     /// index of the interface to join/leave (or 0 to indicate any interface).
-    #[cfg(not(target_os = "nto"))]
+    #[cfg(not(any(target_os = "nto", target_os = "freertos",)))]
     pub fn join_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         let mreq = sys::Ipv6Mreq {
             ipv6mr_multiaddr: sys::to_in6_addr(multiaddr),
@@ -1514,7 +1543,7 @@ impl Socket {
     /// For more information about this option, see [`join_multicast_v6`].
     ///
     /// [`join_multicast_v6`]: Socket::join_multicast_v6
-    #[cfg(not(target_os = "nto"))]
+    #[cfg(not(any(target_os = "nto", target_os = "freertos",)))]
     pub fn leave_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         let mreq = sys::Ipv6Mreq {
             ipv6mr_multiaddr: sys::to_in6_addr(multiaddr),
@@ -1536,6 +1565,7 @@ impl Socket {
     /// For more information about this option, see [`set_multicast_hops_v6`].
     ///
     /// [`set_multicast_hops_v6`]: Socket::set_multicast_hops_v6
+    #[cfg(not(target_os = "freertos"))]
     pub fn multicast_hops_v6(&self) -> io::Result<u32> {
         unsafe {
             getsockopt::<c_int>(self.as_raw(), sys::IPPROTO_IPV6, sys::IPV6_MULTICAST_HOPS)
@@ -1548,6 +1578,7 @@ impl Socket {
     /// Indicates the number of "routers" multicast packets will transit for
     /// this socket. The default value is 1 which means that multicast packets
     /// don't leave the local network unless explicitly requested.
+    #[cfg(not(target_os = "freertos"))]
     pub fn set_multicast_hops_v6(&self, hops: u32) -> io::Result<()> {
         unsafe {
             setsockopt(
@@ -1564,6 +1595,7 @@ impl Socket {
     /// For more information about this option, see [`set_multicast_if_v6`].
     ///
     /// [`set_multicast_if_v6`]: Socket::set_multicast_if_v6
+    #[cfg(not(target_os = "freertos"))]
     pub fn multicast_if_v6(&self) -> io::Result<u32> {
         unsafe {
             getsockopt::<c_int>(self.as_raw(), sys::IPPROTO_IPV6, sys::IPV6_MULTICAST_IF)
@@ -1576,6 +1608,7 @@ impl Socket {
     /// Specifies the interface to use for routing multicast packets. Unlike
     /// ipv4, this is generally required in ipv6 contexts where network routing
     /// prefixes may overlap.
+    #[cfg(not(target_os = "freertos"))]
     pub fn set_multicast_if_v6(&self, interface: u32) -> io::Result<()> {
         unsafe {
             setsockopt(
@@ -1592,6 +1625,7 @@ impl Socket {
     /// For more information about this option, see [`set_multicast_loop_v6`].
     ///
     /// [`set_multicast_loop_v6`]: Socket::set_multicast_loop_v6
+    #[cfg(not(target_os = "freertos"))]
     pub fn multicast_loop_v6(&self) -> io::Result<bool> {
         unsafe {
             getsockopt::<c_int>(self.as_raw(), sys::IPPROTO_IPV6, sys::IPV6_MULTICAST_LOOP)
@@ -1603,6 +1637,7 @@ impl Socket {
     ///
     /// Controls whether this socket sees the multicast packets it sends itself.
     /// Note that this may not have any affect on IPv4 sockets.
+    #[cfg(not(target_os = "freertos"))]
     pub fn set_multicast_loop_v6(&self, loop_v6: bool) -> io::Result<()> {
         unsafe {
             setsockopt(
@@ -1617,6 +1652,7 @@ impl Socket {
     /// Get the value of the `IPV6_UNICAST_HOPS` option for this socket.
     ///
     /// Specifies the hop limit for ipv6 unicast packets
+    #[cfg(not(target_os = "freertos"))]
     pub fn unicast_hops_v6(&self) -> io::Result<u32> {
         unsafe {
             getsockopt::<c_int>(self.as_raw(), sys::IPPROTO_IPV6, sys::IPV6_UNICAST_HOPS)
@@ -1627,6 +1663,7 @@ impl Socket {
     /// Set the value for the `IPV6_UNICAST_HOPS` option on this socket.
     ///
     /// Specifies the hop limit for ipv6 unicast packets
+    #[cfg(not(target_os = "freertos"))]
     pub fn set_unicast_hops_v6(&self, hops: u32) -> io::Result<()> {
         unsafe {
             setsockopt(
