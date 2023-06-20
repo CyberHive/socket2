@@ -115,7 +115,6 @@ impl Socket {
     }
 
     pub(crate) fn into_raw(self) -> sys::Socket {
-        println!("into_raw");
         sys::socket_into_raw(self.inner)
     }
 

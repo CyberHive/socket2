@@ -20,8 +20,6 @@ use std::time::{Duration, Instant};
 use std::{io, slice};
 
 use lwip as netc;
-//use std::os::freertos::netc; // Requires every item to have stability attributes. Problem for bindgen items.
-//use std::sys::net::netc; // It's private, so we can't
 
 use crate::RecvFlags;
 use crate::{Domain, Protocol, SockAddr, TcpKeepalive, Type};
@@ -151,7 +149,6 @@ pub(crate) fn socket_as_raw(socket: &crate::socket::Inner) -> Socket {
 }
 
 pub(crate) fn socket_into_raw(socket: crate::socket::Inner) -> Socket {
-    println!("socket_into_raw");
     let raw_socket = socket.as_raw_socket() as Socket;
     forget(socket);
     raw_socket
@@ -455,7 +452,7 @@ fn into_timeval(duration: Option<Duration>) -> netc::timeval {
         // https://github.com/rust-lang/libc/issues/1848
         #[cfg_attr(target_env = "musl", allow(deprecated))]
         Some(duration) => netc::timeval {
-            tv_sec: min(duration.as_secs(), c_int::max_value() as u64) as c_long,
+            tv_sec: duration.as_secs() as i64,
             tv_usec: duration.subsec_micros() as c_long,
         },
         None => netc::timeval {
