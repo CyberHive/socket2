@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(target_os = "freertos")]
+use lwip::EINPROGRESS;
 use std::fmt;
 use std::io::{self, Read, Write};
 #[cfg(not(target_os = "redox"))]
@@ -232,6 +234,8 @@ impl Socket {
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {}
             #[cfg(unix)]
             Err(ref e) if e.raw_os_error() == Some(libc::EINPROGRESS) => {}
+            #[cfg(target_os = "freertos")]
+            Err(ref e) if e.raw_os_error() == Some(EINPROGRESS) => {}
             Err(e) => return Err(e),
         }
 
