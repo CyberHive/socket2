@@ -16,6 +16,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::os::freertos::io::RawSocket;
 use std::os::freertos::io::{AsRawSocket, FromRawSocket, IntoRawSocket};
 use std::ptr;
+use std::thread::sleep;
 use std::time::{Duration, Instant};
 use std::{io, slice};
 
@@ -61,11 +62,30 @@ pub(crate) type Bool = c_int;
 
 use netc::TCP_KEEPIDLE as KEEPALIVE_TIME;
 
+pub fn wait_for_lwip_init() {
+    // The LwIP initialisation function can only be called once, and should be called at startup (as part of the OS
+    // initialisation). So, no need to call it here. Instead, we can check whether initialisation is complete, and wait for it.
+    // We wait a limited time so that network functions don't block indefinitely. If initialisation hasn't finished by then,
+    // the network function will fail with an error message.
+    let mut retry_count = 0;
+    loop {
+        if netc::is_netif_initialised() {
+            return;
+        }
+        if retry_count > 12 {
+            return;
+        }
+        sleep(Duration::from_millis(250));
+        retry_count = retry_count + 1;
+    }
+}
+
 /// Helper macro to execute a system call that returns an `io::Result`.
 macro_rules! syscall {
     ($fn: ident ( $($arg: expr),* $(,)* ) ) => {{
         #[allow(unused_unsafe)]
-        let res = unsafe { netc::$fn($($arg, )*) };
+        wait_for_lwip_init();
+        let res = netc::$fn($($arg, )*);
         if res == -1 {
             Err(std::io::Error::last_os_error())
         } else {
