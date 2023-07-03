@@ -54,7 +54,6 @@ pub(crate) use netc::{
     SO_REUSEADDR, SO_SNDBUF, SO_SNDTIMEO, SO_TYPE, TCP_NODELAY,
 };
 
-#[cfg(all(feature = "all"))]
 pub(crate) use netc::{TCP_KEEPCNT, TCP_KEEPINTVL};
 
 // See this type in the Windows file.
